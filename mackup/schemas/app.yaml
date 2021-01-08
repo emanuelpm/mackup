@@ -1,0 +1,9 @@
+# name: AppName
+# configuration_files:
+# - <file or folder strings, one per line>
+# xdg_configuration_files:
+# - <file or folder strings, one per line>
+
+name: str(required=True)
+configuration_files: list(str(), required=False)
+xdg_configuration_files: list(str(), required=False)

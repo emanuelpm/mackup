@@ -1,0 +1,15 @@
+# storage:
+#   engine: <engine string>
+#   path: <path string>
+#   directory: <path string>
+# applications_to_ignore:
+# - <file or folder strings, one per line>
+
+storage:
+    engine: str(required=True)
+    path: str(required=False)
+    directory: str(required=False)
+
+applications_to_sync: list(str(), required=False)
+
+applications_to_ignore: list(str(), required=False)

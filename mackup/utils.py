@@ -9,8 +9,16 @@ import sys
 import sqlite3
 from six.moves import input
 
-from . import constants
+from collections import OrderedDict
+import yamale
 
+try:
+    import configparser
+except ImportError:
+    import ConfigParser as configparser
+
+from . import constants
+from . import config
 
 # Flag that controls how user confirmation works.
 # If True, the user wants to say "yes" to everything.
@@ -409,3 +417,158 @@ def can_file_be_synced_on_current_platform(path):
             can_be_synced = False
 
     return can_be_synced
+
+
+def convert_user_ini_to_yaml(old_file, new_file):
+    """
+    Convert the old ini config file format to the new yaml format
+
+    Args:
+        old_file (str): Path to the file to convert
+        new_file (str): Path to converted output file
+
+    Returns:
+        (bool): True if the file was converted successfully, false otherwise
+    """
+    assert isinstance(old_file, str)
+    assert isinstance(new_file, str)
+
+    if not os.path.exists(old_file):
+        error("File to convert doesn't exist: " + old_file)
+        return False
+
+    if os.path.isdir(old_file):
+        error(old_file + " is a directory, must be a file")
+        return False
+
+    if os.path.exists(new_file):
+        error(new_file + " already exists, aborting to prevent clobbering data")
+        return False
+
+    if not os.path.splitext(old_file)[1] == constants.MACKUP_OLD_CONFIG_EXTENSION:
+        error("Can only convert old mackup config files ("
+                + constants.MACKUP_OLD_CONFIG_EXTENSION
+                + ")")
+        return False
+
+    try:
+        cfg = config.Config(old_file)
+
+        engine = cfg.engine()
+        path = cfg.path()
+        directory = cfg.directory()
+        apps_to_ignore = cfg.paths_to_ignore()
+        apps_to_sync = cfg.paths_to_sync()
+    except ConfigError:
+        error("Config file " + old_file + " is not valid.")
+
+    linesep = "\n"
+    yaml = "storage:" + linesep
+    yaml = yaml + "\tengine: " + engine + linesep
+
+    if len(path) > 0:
+        yaml = yaml + "\tpath: " + path + linesep
+
+    if len(directory) > 0:
+        yaml = yaml + "\tdirectory: " + directory + linesep
+
+    if len(apps_to_sync) > 0:
+        yaml = yaml + "applications_to_sync: "
+        for app in apps_to_sync:
+            yaml = yaml + "\t- " + app + linesep
+
+    if len(apps_to_ignore) > 0:
+        yaml = yaml + "applications_to_ignore: "
+        for app in apps_to_ignore:
+            yaml = yaml + "\t- " + app + linesep
+
+    try:
+        schema = yamale.make_schema(constants.MACKUP_USER_CONFIG_SCHEMA)
+        yamale.validate(schema, yaml)
+
+        try:
+            with open(new_file, "w") as yaml_file:
+                yaml_file.write(yaml)
+            return True
+        except IOError:
+            error("Unable to write to " + new_file)
+    except ValueError:
+        error("Invalid cfg contents, yaml doesn't match schema")
+
+    return False
+
+def convert_app_ini_to_yaml(old_file, new_file):
+    """
+    Convert the old ini app file format to the new yaml format
+
+    Args:
+        old_file (str): Path to the file to convert
+        new_file (str): Path to converted output file
+
+    Returns:
+        (bool): True if the file was converted successfully, false otherwise
+    """
+    assert isinstance(old_file, str)
+    assert isinstance(new_file, str)
+
+    if not os.path.exists(old_file):
+        error("File to convert doesn't exist: " + old_file)
+        return False
+
+    if os.path.isdir(old_file):
+        error(old_file + " is a directory, must be a file")
+        return False
+
+    if os.path.exists(new_file):
+        error(new_file + " already exists, aborting to prevent clobbering data")
+        return False
+
+    if not os.path.splitext(old_file)[1] == constants.MACKUP_OLD_CONFIG_EXTENSION:
+        error("Can only convert old mackup app files ("
+                + constants.MACKUP_OLD_CONFIG_EXTENSION
+                + ")")
+        return False
+
+    config = configparser.SetConfigParser(allow_no_value=True)
+    config.optionxform = str
+    if config.read(old_file):
+        app_pretty_name = config.get("application", "name")
+
+        config_files = list()
+        if config.has_section("configuration_files"):
+            for path in config.options("configuration_files"):
+                config_files.add(path)
+
+        xdg_files = list()
+        if config.has_section("xdg_configuration_files"):
+            for path in config.options("xdg_configuration_files"):
+                xdg_files.add(path)
+    else:
+        error("Invalid application file " + old_file)
+        return False
+
+    linesep = "\n"
+    yaml = "name: " + app_pretty_name + linesep
+
+    if len(config_files) > 0:
+        yaml = yaml + "configuration_files: " + linesep
+        for cfg in config_files:
+            yaml = yaml + "\t- " + cfg + linesep
+
+    if len(xdg_files) > 0:
+        yaml = yaml + "xdg_configuration_files: " + linesep
+        for xdg in xdg_file:
+            yaml = yaml + "\t- " + xdg + linesep
+
+    try:
+        schema = yamale.make_schema(constants.MACKUP_APP_CONFIG_SCHEMA)
+        yamale.validate(schema, yaml)
+
+        try:
+            with open(new_file, "w") as yaml_file:
+                yaml_file.write(yaml)
+            return True
+        except IOError:
+            error("Unable to write to " + new_file)
+    except ValueError:
+        error("Invalid cfg contents, yaml doesn't match schema")

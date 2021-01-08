@@ -6,14 +6,14 @@ data from the Mackup Database (files).
 """
 import os
 
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
-
+import yamale
 
 from .constants import APPS_DIR
 from .constants import CUSTOM_APPS_DIR
+from .constants import (
+    MACKUP_CONFIG_EXTENSION,
+    MACKUP_APP_CONFIG_SCHEMA
+)
 
 
 class ApplicationsDatabase(object):
@@ -26,20 +26,17 @@ class ApplicationsDatabase(object):
         self.apps = dict()
 
         for config_file in ApplicationsDatabase.get_config_files():
-            config = configparser.SafeConfigParser(allow_no_value=True)
+            try:
+                config_schema = yamale.make_schema(MACKUP_APP_CONFIG_SCHEMA)
+                config_contents = yamale.make_data(config_file)
 
-            # Needed to not lowercase the configuration_files in the ini files
-            config.optionxform = str
-
-            if config.read(config_file):
                 # Get the filename without the directory name
                 filename = os.path.basename(config_file)
                 # The app name is the cfg filename with the extension
-                app_name = filename[: -len(".cfg")]
+                app_name = filename[: -len(MACKUP_CONFIG_EXTENSION)]
 
                 # Start building a dict for this app
                 self.apps[app_name] = dict()
-
                 # Add the fancy name for the app, for display purpose
                 app_pretty_name = config.get("application", "name")
                 self.apps[app_name]["name"] = app_pretty_name
@@ -73,6 +70,9 @@ class ApplicationsDatabase(object):
                         path = os.path.join(xdg_config_home, path)
                         path = path.replace(home, "")
                         (self.apps[app_name]["configuration_files"].add(path))
+
+            except ValueError as error:
+                print(error)
 
     @staticmethod
     def get_config_files():

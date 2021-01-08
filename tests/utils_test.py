@@ -6,6 +6,7 @@ import stat
 # from unittest.mock import patch
 
 from mackup import utils
+from mackup import constants
 
 
 def convert_to_octal(file_name):
@@ -14,8 +15,17 @@ def convert_to_octal(file_name):
     """
     return oct(os.stat(file_name)[stat.ST_MODE])[-3:]
 
+def generate_temp_file_name(suffix=""):
+    temp_name = next(tempfile._get_candidate_names()) + suffix
+    temp_dir = tempfile._get_default_tempdir()
+    return os.path.join(temp_dir, temp_name)
 
+ 
 class TestMackup(unittest.TestCase):
+    def setUp(self):
+        realpath = os.path.dirname(os.path.realpath(__file__))
+        os.environ["HOME"] = os.path.join(realpath, "fixtures")
+
     def test_confirm_yes(self):
         # Override the input used in utils
         def custom_input(_):
@@ -332,3 +342,52 @@ class TestMackup(unittest.TestCase):
         # Try to use the library path on Linux, which shouldn't work
         path = os.path.join(os.environ["HOME"], "Library/")
         assert not utils.can_file_be_synced_on_current_platform(path)
+
+    def test_convert_user_cfg_to_yaml(self):
+        # Test for invalid file string
+        dont_exist_cfg = generate_temp_file_name(suffix=constants.MACKUP_OLD_CONFIG_EXTENSION)
+        dont_exist_yaml = generate_temp_file_name(suffix=constants.MACKUP_CONFIG_EXTENSION)
+
+    def test_convert_app_cfg_to_yaml(self):
+        # Test for invalid file string
+        dont_exist_cfg = generate_temp_file_name(suffix=constants.MACKUP_OLD_CONFIG_EXTENSION)
+        dont_exist_yaml = generate_temp_file_name(suffix=constants.MACKUP_CONFIG_EXTENSION)
+
+        self.assertRaises(SystemExit,
+                          utils.convert_app_ini_to_yaml,
+                          dont_exist_cfg,
+                          dont_exist_yaml)
+        
+        # Test for invalid file extension check
+        bad_ext_cfg = generate_temp_file_name(suffix=".bad")
+        bad_ext_yaml = generate_temp_file_name(suffix=constants.MACKUP_CONFIG_EXTENSION)
+
+        self.assertRaises(SystemExit,
+                          utils.convert_app_ini_to_yaml,
+                          bad_ext_cfg,
+                          bad_ext_yaml)
+
+        # Test for invalid contents
+        bad_file_yaml = generate_temp_file_name(suffix=constants.MACKUP_CONFIG_EXTENSION)
+
+        self.assertRaises(SystemExit,
+                          utils.convert_app_ini_to_yaml,
+                          os.path.join(os.environ["HOME"], "mackup-convert-app-bad.cfg"),
+                          bad_file_yaml)
+
+        # Test for a successful conversion
+        converted_file_name_yaml = generate_temp_file_name(suffix=constants.MACKUP_CONFIG_EXTENSION)
+
+        convert_success = utils.convert_app_ini_to_yaml(os.path.join(os.environ["HOME"], "mackup-convert-app.cfg"),
+                                                    converted_file_name_yaml)
+        self.assertTrue(convert_success, "App config failed to convert hardcoded app config which should be valid")
+        if convert_success:
+            try:
+                with os.open(converted_file_name_yaml, "r") as cf:
+                    file_contents = cf.read()
+
+                    with os.open(os.path.join(os.environ["HOME"], "mackup-convert-app.yaml"), "r") as eo:
+                        expected_output = eo.read()
+                        self.assertMultiLineEqual(expected_output, file_contents)
+            except IOError:
+                self.assertTrue(False, "Exception thrown while reading converted file")

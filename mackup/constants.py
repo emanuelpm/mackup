@@ -16,7 +16,12 @@ MACKUP_APP_NAME = "mackup"
 MACKUP_BACKUP_PATH = "Mackup"
 
 # Mackup config file
-MACKUP_CONFIG_FILE = ".mackup.cfg"
+MACKUP_CONFIG_FILE = ".mackup.yaml"
+MACKUP_OLD_CONFIG_FILE = ".mackup.cfg"
+
+# Old and new file extensions for the config files
+MACKUP_CONFIG_EXTENSION = ".yaml"
+MACKUP_OLD_CONFIG_EXTENSION = ".cfg"
 
 # Directory that can contains user defined app configs
 CUSTOM_APPS_DIR = ".mackup"
@@ -28,3 +33,6 @@ ENGINE_DROPBOX = "dropbox"
 ENGINE_FS = "file_system"
 ENGINE_GDRIVE = "google_drive"
 ENGINE_ICLOUD = "icloud"
+
+MACKUP_USER_CONFIG_SCHEMA = "schemas/user.yaml"
+MACKUP_APP_CONFIG_SCHEMA = "schemas/app.yaml"
